@@ -118,3 +118,15 @@ func (r *Reader) getAttributeMetadata(ctx context.Context, attributes pcommon.Ma
 
 	return metadata, nil
 }
+
+// getAttributeMetadataForKeys retrieves storage types for attribute keys from the attribute_metadata view.
+func (r *Reader) getAttributeMetadataForKeys(ctx context.Context, keys []string) (attributeMetadata, error) {
+	if len(keys) == 0 {
+		return make(attributeMetadata), nil
+	}
+	m := pcommon.NewMap()
+	for _, key := range keys {
+		m.PutStr(key, "")
+	}
+	return r.getAttributeMetadata(ctx, m)
+}

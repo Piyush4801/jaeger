@@ -150,7 +150,8 @@ func ClickHouse() Capabilities {
 			"GetThroughput",
 			"GetLatestProbability",
 			findTraceSummariesTest,
-			structuredFilterTest,
+			attributeRefusedTest,
+			"a_level_the_backend_does_not_index_is_refused",
 		},
 	}
 }

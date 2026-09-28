@@ -136,39 +136,63 @@ func (r *Reader) buildFindTraceIDsQuery(
 	inner.WriteString(sql.SearchTraceIDsBase)
 	args := []any{}
 
-	if query.ServiceName != "" {
-		appendAnd(&inner, "s.service_name = ?")
-		args = append(args, query.ServiceName)
-	}
-	if query.OperationName != "" {
-		appendAnd(&inner, "s.name = ?")
-		args = append(args, query.OperationName)
-	}
-	if query.DurationMin > 0 {
-		appendAnd(&inner, "s.duration >= ?")
-		args = append(args, query.DurationMin.Nanoseconds())
-	}
-	if query.DurationMax > 0 {
-		appendAnd(&inner, "s.duration <= ?")
-		args = append(args, query.DurationMax.Nanoseconds())
-	}
-	if !query.StartTimeMin.IsZero() {
-		appendAnd(&inner, "s.start_time >= ?")
-		args = append(args, query.StartTimeMin)
-	}
-	if !query.StartTimeMax.IsZero() {
-		appendAnd(&inner, "s.start_time <= ?")
-		args = append(args, query.StartTimeMax)
-	}
+	if query.Filter != nil {
+		if !query.StartTimeMin.IsZero() {
+			appendAnd(&inner, "s.start_time >= ?")
+			args = append(args, query.StartTimeMin)
+		}
+		if !query.StartTimeMax.IsZero() {
+			appendAnd(&inner, "s.start_time <= ?")
+			args = append(args, query.StartTimeMax)
+		}
 
-	attributeMetadata, err := r.getAttributeMetadata(ctx, query.Attributes)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to get attribute metadata: %w", err)
-	}
+		filterKeys := extractAttributeKeys(query.Filter)
+		attributeMetadata, err := r.getAttributeMetadataForKeys(ctx, filterKeys)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to get attribute metadata: %w", err)
+		}
 
-	args, err = buildAttributeConditions(&inner, args, query.Attributes, attributeMetadata)
-	if err != nil {
-		return "", nil, err
+		filterSQL, filterArgs, err := buildFilterQuery(query.Filter, attributeMetadata)
+		if err != nil {
+			return "", nil, err
+		}
+		appendAnd(&inner, filterSQL)
+		args = append(args, filterArgs...)
+	} else {
+		if query.ServiceName != "" {
+			appendAnd(&inner, "s.service_name = ?")
+			args = append(args, query.ServiceName)
+		}
+		if query.OperationName != "" {
+			appendAnd(&inner, "s.name = ?")
+			args = append(args, query.OperationName)
+		}
+		if query.DurationMin > 0 {
+			appendAnd(&inner, "s.duration >= ?")
+			args = append(args, query.DurationMin.Nanoseconds())
+		}
+		if query.DurationMax > 0 {
+			appendAnd(&inner, "s.duration <= ?")
+			args = append(args, query.DurationMax.Nanoseconds())
+		}
+		if !query.StartTimeMin.IsZero() {
+			appendAnd(&inner, "s.start_time >= ?")
+			args = append(args, query.StartTimeMin)
+		}
+		if !query.StartTimeMax.IsZero() {
+			appendAnd(&inner, "s.start_time <= ?")
+			args = append(args, query.StartTimeMax)
+		}
+
+		attributeMetadata, err := r.getAttributeMetadata(ctx, query.Attributes)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to get attribute metadata: %w", err)
+		}
+
+		args, err = buildAttributeConditions(&inner, args, query.Attributes, attributeMetadata)
+		if err != nil {
+			return "", nil, err
+		}
 	}
 
 	inner.WriteString("\nLIMIT ?")

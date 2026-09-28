@@ -60,11 +60,14 @@ func NewReader(conn driver.Conn, cfg ReaderConfig) *Reader {
 }
 
 func (*Reader) SearchCapabilities(context.Context) (tracestore.SearchCapabilities, error) {
+	filterCaps := FilterCapabilities()
 	return tracestore.SearchCapabilities{
 		// The search SQL starts from "WHERE 1=1" and appends the service predicate only
 		// when the query carries a name, so an omitted name matches spans from every
 		// service.
-		WithoutServiceName: true,
+		WithoutServiceName:  true,
+		SameSpanConjunction: true,
+		Filter:              &filterCaps,
 	}, nil
 }
 

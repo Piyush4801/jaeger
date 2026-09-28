@@ -12,9 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 
+	builder "github.com/jaegertracing/jaeger/internal/expression"
 	"github.com/jaegertracing/jaeger/internal/storage/v2/api/tracestore"
 	"github.com/jaegertracing/jaeger/internal/storage/v2/clickhouse/clickhousetest"
 	"github.com/jaegertracing/jaeger/internal/storage/v2/clickhouse/sql"
+	"github.com/jaegertracing/jaeger/internal/storage/v2/clickhouse/tracestore/dbmodel"
 )
 
 func TestBuildFindTraceIDsQuery_MarshalErrors(t *testing.T) {
@@ -189,4 +191,93 @@ func TestBuildStringAttributeCondition_MultipleTypes(t *testing.T) {
 	assert.Contains(t, query, "OR")
 	assert.Contains(t, query, "str_attributes")
 	assert.Len(t, args, 4)
+}
+
+func TestBuildFindTraceIDsQuery_Filter(t *testing.T) {
+	var p builder.Predicate
+	now := time.Now()
+
+	t.Run("filter with attributes and metadata", func(t *testing.T) {
+		td := &clickhousetest.Driver{
+			QueryResponses: map[string]*clickhousetest.QueryResponse{
+				sql.SelectAttributeMetadata: {
+					Rows: &clickhousetest.Rows[dbmodel.AttributeMetadata]{
+						Data: []dbmodel.AttributeMetadata{{
+							AttributeKey: "http.status_code",
+							Type:         "int",
+							Level:        "span",
+						}},
+						ScanFn: func(dest any, src dbmodel.AttributeMetadata) error {
+							ptr, ok := dest.(*dbmodel.AttributeMetadata)
+							if !ok {
+								return assert.AnError
+							}
+							*ptr = src
+							return nil
+						},
+					},
+				},
+			},
+		}
+		reader := NewReader(td, testReaderConfig)
+		filter := p.And(
+			p.Span().Attr("http.status_code").Eq("200"),
+			p.Resource().Service.Eq("frontend"),
+		)
+		q, args, err := reader.buildFindTraceIDsQuery(t.Context(), tracestore.TraceQueryParams{
+			StartTimeMin: now.Add(-1 * time.Hour),
+			StartTimeMax: now,
+			Filter:       filter,
+		})
+		require.NoError(t, err)
+		assert.Contains(t, q, "s.int_attributes")
+		assert.Contains(t, q, "s.service_name = ?")
+		assert.Contains(t, args, int64(200))
+		assert.Contains(t, args, "frontend")
+	})
+
+	t.Run("filter without attributes does not call metadata", func(t *testing.T) {
+		reader := NewReader(&clickhousetest.Driver{}, testReaderConfig)
+		filter := p.Resource().Service.Eq("frontend")
+		q, args, err := reader.buildFindTraceIDsQuery(t.Context(), tracestore.TraceQueryParams{
+			StartTimeMin: now.Add(-1 * time.Hour),
+			StartTimeMax: now,
+			Filter:       filter,
+		})
+		require.NoError(t, err)
+		assert.Contains(t, q, "s.service_name = ?")
+		assert.Contains(t, args, "frontend")
+	})
+
+	t.Run("filter metadata error", func(t *testing.T) {
+		td := &clickhousetest.Driver{
+			QueryResponses: map[string]*clickhousetest.QueryResponse{
+				sql.SelectAttributeMetadata: {
+					Err: assert.AnError,
+				},
+			},
+		}
+		reader := NewReader(td, testReaderConfig)
+		filter := p.Span().Attr("foo").Eq("bar")
+		_, _, err := reader.buildFindTraceIDsQuery(t.Context(), tracestore.TraceQueryParams{
+			Filter: filter,
+		})
+		require.ErrorContains(t, err, "failed to get attribute metadata")
+	})
+
+	t.Run("filter build error", func(t *testing.T) {
+		reader := NewReader(&clickhousetest.Driver{}, testReaderConfig)
+		filter := p.Some(p.Event(), p.Event().Name.Eq("foo"))
+		_, _, err := reader.buildFindTraceIDsQuery(t.Context(), tracestore.TraceQueryParams{
+			Filter: filter,
+		})
+		require.ErrorIs(t, err, tracestore.ErrFilterUnsupported)
+	})
+
+	t.Run("getAttributeMetadataForKeys empty keys", func(t *testing.T) {
+		reader := NewReader(&clickhousetest.Driver{}, testReaderConfig)
+		meta, err := reader.getAttributeMetadataForKeys(t.Context(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, meta)
+	})
 }

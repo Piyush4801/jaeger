@@ -1290,5 +1290,10 @@ func TestFindTraceIDs_BuildQueryError(t *testing.T) {
 func TestReader_SearchCapabilities(t *testing.T) {
 	caps, err := (&Reader{}).SearchCapabilities(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, tracestore.SearchCapabilities{WithoutServiceName: true}, caps)
+	filterCaps := FilterCapabilities()
+	assert.Equal(t, tracestore.SearchCapabilities{
+		WithoutServiceName:  true,
+		SameSpanConjunction: true,
+		Filter:              &filterCaps,
+	}, caps)
 }
