@@ -30,6 +30,25 @@ const (
 	attributeOrderingTest  = "ordering_compares_a_numeric_attribute_as_a_number"
 	attributeRefusedTest   = "ordering_an_attribute_is_refused_where_it_is_indexed_as_text"
 	attributeUnindexedTest = "ordering_an_attribute_finds_nothing_in_indices_written_before_the_numeric_mapping"
+
+	// Filter cases using operators, fields, or levels a backend does not evaluate natively.
+	filterUnqualifiedEventTest = "an_unqualified_attribute_does_not_reach_the_event_level"
+	filterServiceInListTest    = "the_service_name_against_a_list_of_names"
+	filterOperationRegexTest   = "a_pattern_on_the_operation_name_matches_anywhere_in_it"
+	filterEventNameTest        = "the_name_of_one_of_the_span's_events"
+	filterDurationGtTest       = "a_duration_greater_than_a_bound"
+	filterDurationLteTest      = "a_duration_at_most_a_bound"
+	filterDurationRangeTest    = "a_duration_between_two_bounds"
+	filterAttributeNeTest      = "an_attribute_inequality_leaves_out_a_span_that_lacks_the_attribute"
+	filterAttributeExistsTest  = "an_attribute_exists"
+	filterAttributeRegexTest   = "a_pattern_on_an_attribute_value"
+	filterFieldDurationAndTest = "a_conjunction_of_a_built-in_field_and_a_duration"
+	filterUnindexedLevelTest   = "a_level_the_backend_does_not_index_is_refused"
+	filterScopeLevelTest       = "a_scope-level_attribute_matches_the_instrumentation_scope's_attributes_only"
+	filterLinkLevelTest        = "a_link-level_attribute_matches_an_attribute_of_one_of_the_span's_links"
+	filterSpanKindTest         = "the_span_kind"
+	filterSpanStatusTest       = "the_span_status"
+	filterStringTypedConstTest = "a_string-typed_constant_leaves_out_an_attribute_stored_as_a_number"
 )
 
 // attributeOrderingTests are the three outcomes of ordering an attribute, of which one runs.
@@ -191,7 +210,21 @@ func ClickHouse() Capabilities {
 			"GetThroughput",
 			"GetLatestProbability",
 			findTraceSummariesTest,
-			structuredFilterTest,
+			filterUnqualifiedEventTest,
+			filterServiceInListTest,
+			filterOperationRegexTest,
+			filterEventNameTest,
+			filterDurationGtTest,
+			filterDurationLteTest,
+			filterDurationRangeTest,
+			filterAttributeNeTest,
+			filterAttributeExistsTest,
+			filterAttributeRegexTest,
+			filterFieldDurationAndTest,
+			filterUnindexedLevelTest,
+			attributeOrderingTest,
+			attributeRefusedTest,
+			attributeUnindexedTest,
 		},
 	}
 }
@@ -227,6 +260,11 @@ func Elasticsearch() Capabilities {
 			paginationTest,
 			scopeAttributesTest,
 			linkAttributesTest,
+			filterScopeLevelTest,
+			filterLinkLevelTest,
+			filterSpanKindTest,
+			filterSpanStatusTest,
+			filterStringTypedConstTest,
 		},
 	}.orderingOutcome(attributeOrderingTest)
 }
@@ -258,6 +296,11 @@ func OpenSearch() Capabilities {
 			paginationTest,
 			scopeAttributesTest,
 			linkAttributesTest,
+			filterScopeLevelTest,
+			filterLinkLevelTest,
+			filterSpanKindTest,
+			filterSpanStatusTest,
+			filterStringTypedConstTest,
 		},
 	}.orderingOutcome(attributeOrderingTest)
 }

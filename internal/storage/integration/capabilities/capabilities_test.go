@@ -43,3 +43,31 @@ func TestAttributeOrderingOutcome(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterCapabilities(t *testing.T) {
+	ch := ClickHouse().SkipList()
+	assert.NotContains(t, ch, structuredFilterTest, "ClickHouse runs FindTracesWithFilter")
+	assert.Contains(t, ch, filterUnqualifiedEventTest)
+	assert.Contains(t, ch, filterDurationGtTest)
+	assert.Contains(t, ch, filterUnindexedLevelTest)
+	assert.NotContains(t, ch, filterScopeLevelTest, "ClickHouse supports scope level")
+	assert.NotContains(t, ch, filterLinkLevelTest, "ClickHouse supports link level")
+	assert.NotContains(t, ch, filterSpanKindTest, "ClickHouse supports span.kind")
+	assert.NotContains(t, ch, filterSpanStatusTest, "ClickHouse supports span.status")
+
+	es := Elasticsearch().SkipList()
+	assert.NotContains(t, es, structuredFilterTest, "Elasticsearch runs FindTracesWithFilter")
+	assert.Contains(t, es, filterScopeLevelTest)
+	assert.Contains(t, es, filterLinkLevelTest)
+	assert.Contains(t, es, filterSpanKindTest)
+	assert.Contains(t, es, filterSpanStatusTest)
+	assert.Contains(t, es, filterStringTypedConstTest)
+
+	os := OpenSearch().SkipList()
+	assert.NotContains(t, os, structuredFilterTest, "OpenSearch runs FindTracesWithFilter")
+	assert.Contains(t, os, filterScopeLevelTest)
+	assert.Contains(t, os, filterLinkLevelTest)
+	assert.Contains(t, os, filterSpanKindTest)
+	assert.Contains(t, os, filterSpanStatusTest)
+	assert.Contains(t, os, filterStringTypedConstTest)
+}
